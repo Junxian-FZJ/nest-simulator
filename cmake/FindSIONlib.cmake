@@ -127,6 +127,13 @@ if ( NOT SIONLIB_CONFIG STREQUAL "SIONLIB_CONFIG-NOTFOUND" )
   endif ()
 endif ()
 
+set( SIONLIB_LIBRARIES ${SIONLIB_LIBRARIES} ${SIONLIB_ROOT_DIR}lib/libsionmpi_64.a CACHE INTERNAL "sionlib" )
+get_cmake_property(_variableNames VARIABLES)
+list (SORT _variableNames)
+foreach (_variableName ${_variableNames})
+    message(STATUS "${_variableName}=${${_variableName}}")
+endforeach()
+
 include( FindPackageHandleStandardArgs )
 find_package_handle_standard_args( SIONlib
   FOUND_VAR

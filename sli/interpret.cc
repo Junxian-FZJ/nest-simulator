@@ -1215,6 +1215,7 @@ SLIInterpreter::execute( const std::string& cmdline )
   {
     return -1;
   }
+  std::cout << "IN EXECute string: " << cmdline << "\n";
 
   OStack.push( new StringDatum( cmdline ) );
   EStack.push( new NameDatum( "::evalstring" ) );
@@ -1229,6 +1230,7 @@ SLIInterpreter::execute( const Token& cmd )
   {
     return -1;
   }
+  std::cout << "IN EXECute token. \n";
 
   EStack.push( cmd );
   return execute_(); // run the interpreter
@@ -1240,6 +1242,7 @@ SLIInterpreter::execute( int v )
 {
   startup();
   EStack.push( new NameDatum( "start" ) );
+  std::cout << "IN EXECute v. \n";
   switch ( v )
   {
   case 0:

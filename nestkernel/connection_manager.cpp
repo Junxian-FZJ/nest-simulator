@@ -65,6 +65,8 @@
 #include "token.h"
 #include "tokenutils.h"
 
+#include "sion.h"
+#include<unistd.h>
 
 nest::ConnectionManager::ConnectionManager()
   : connruledict_( new Dictionary() )
@@ -1159,9 +1161,29 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
       get_connections( connectome, source_a, target_a, syn_id, synapse_label );
     }
   }
+  printf("Rank %ld, INSIDE GetConnection size %zu. nestkernel/connection_manager.cpp\n", kernel().mpi_manager.get_rank(), connectome.size());
 
   ArrayDatum result;
   result.reserve( connectome.size() );
+
+  //
+  sion_int64 array_size = connectome.size();
+  sion_int64 unit_size;
+  unit_size = sizeof(ConnectionDatum( connectome.front() ));
+  //unit_size = sizeof(double);
+  //std::vector<double> test_double;
+  //test_double.reserve(array_size);
+  //for (int j = 0; j < array_size; j++){
+  //  test_double[j] = j+1;
+  //}
+  ConnectionDatum Cdatum;
+  Cdatum = ConnectionDatum( connectome.front() );
+  DictionaryDatum conn_dict = Cdatum.get_dict();
+  std::size_t source_node_id = getValue< long >( conn_dict, nest::names::source );
+  printf("SOURCE_NODE_ID: %lu \n", source_node_id);
+  //std::cout << "HOPES " << conn_dict.datum()->gettypename().toString() << std::endl;
+  //printf(conn_dict.datum()->gettypename().toString());
+  //
 
   while ( not connectome.empty() )
   {
@@ -1170,6 +1192,55 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
   }
 
   get_connections_has_been_called_ = true;
+
+  printf("Sizeof ConnDatum: %llu long int: %lu double: %lu\n", unit_size, sizeof(long int), sizeof(double));
+  int sid;
+  int numFiles = 1;
+  sion_int64 chunksize  = array_size*unit_size;
+  sion_int32 fsblksize  = 8*1024*1024;
+  FILE* fileptr    = NULL;
+  char* newfname   = NULL;
+  MPI_Comm lComm;
+  int gRank = kernel().mpi_manager.get_rank();
+  lComm = kernel().mpi_manager.get_communicator();
+/*
+  MPI_Barrier(lComm);
+  printf("START WAITING...\n");
+  unsigned int second = 1000000;
+  usleep(120*second);
+*/
+  //========================WRITE===================
+/*
+  sid = sion_paropen_mpi("nest_sion_test.sion", "w", &numFiles, kernel().mpi_manager.get_communicator(), \
+                    &lComm, &chunksize, &fsblksize, &gRank, \
+                    &fileptr, &newfname);
+
+  //sion_fwrite(&test_double[0], unit_size, array_size, sid);
+  sion_fwrite(&result[0], unit_size, array_size, sid);
+  printf("SID = %d\n", sid);
+
+  sion_parclose_mpi(sid);
+*/
+  //=================READ========================
+/*
+  //std::vector<double> test_dou;
+  //test_dou.reserve(array_size);
+  ArrayDatum entry;
+  entry.reserve(array_size);
+  sid = sion_paropen_mpi("nest_sion_test.sion", "r", &numFiles, kernel().mpi_manager.get_communicator(), \
+                    &lComm, &chunksize, &fsblksize, &gRank, \
+                    &fileptr, &newfname);
+
+  //sion_fread(&test_dou[0], unit_size, array_size, sid);
+  sion_fread(&entry[0], unit_size, array_size, sid);
+  printf("SID = %d\n", sid);
+
+  sion_parclose_mpi(sid);
+  //for (int j = 0; j < array_size; j++){
+  //  printf("test_dou: %f\n", test_dou[j]);
+  //}
+*/
+  printf("Rank %ld done with SION stuff, array size %llu.\n", kernel().mpi_manager.get_rank(), array_size);
 
   return result;
 }

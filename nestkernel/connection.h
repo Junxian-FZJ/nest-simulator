@@ -168,6 +168,17 @@ public:
    */
   void calibrate( const TimeConverter& );
 
+  double
+  get_weight()
+  {
+    return numerics::nan;
+  }
+
+  void
+  set_weight(const double weight)
+  {
+  }
+
   /**
    * Return the delay of the connection in ms
    */

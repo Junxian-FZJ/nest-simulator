@@ -211,6 +211,7 @@ get_connections( const DictionaryDatum& dict )
 {
   dict->clear_access_flags();
 
+  printf("IN NEST CPP. nestkernel/nest.cpp\n");
   ArrayDatum array = kernel().connection_manager.get_connections( dict );
 
   ALL_ENTRIES_ACCESSED( *dict, "GetConnections", "Unread dictionary entries: " );

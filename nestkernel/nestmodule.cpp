@@ -575,6 +575,7 @@ NestModule::GetConnections_DFunction::execute( SLIInterpreter* i ) const
 
   DictionaryDatum dict = getValue< DictionaryDatum >( i->OStack.pick( 0 ) );
 
+  printf("IN SLI INT? nestkernel/nestmodule.cpp\n");
   ArrayDatum array = get_connections( dict );
 
   i->OStack.pop();

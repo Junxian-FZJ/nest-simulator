@@ -103,6 +103,8 @@ def GetConnections(source=None, target=None, synapse_model=None, synapse_label=N
         params["synapse_label"] = synapse_label
 
     sps(params)
+
+    print("BEFORE SLI RUN. pynest/nest/lib/hl_api_connections.py\n")
     sr("GetConnections")
 
     conns = spp()

@@ -211,6 +211,15 @@ public:
    * Remove disabled connections from the connector.
    */
   virtual void remove_disabled_connections( const size_t first_disabled_index ) = 0;
+
+#ifdef HAVE_SIONLIB
+  virtual void dump_connections( const int sionlib_file_id,
+    const size_t chunk_size,
+    const size_t chunk_size_left,
+    const size_t tid ) = 0;
+#else
+  virtual void dump_connections( std::ostream& connections_out, const size_t tid ) = 0;
+#endif
 };
 
 /**
@@ -512,6 +521,15 @@ public:
     assert( C_[ first_disabled_index ].is_disabled() );
     C_.erase( C_.begin() + first_disabled_index, C_.end() );
   }
+
+#ifdef HAVE_SIONLIB
+  void dump_connections( const int sionlib_file_id,
+    const size_t chunk_size,
+    const size_t chunk_size_left,
+    const size_t tid ) override;
+#else
+  void dump_connections( std::ostream& connections_out, const size_t tid ) override;
+#endif
 };
 
 } // of namespace nest
