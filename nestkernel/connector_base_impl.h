@@ -73,7 +73,22 @@ Connector< ConnectionT >::dump_connections( const int sionlib_file_id,
   const size_t chunk_size_left,
   const size_t tid )
 {
-  size_t chars_left_in_chunk = chunk_size_left;
+  size_t conn_instance = 0;
+  for ( ConnectionT& conn : C_ )
+  {
+    Node* target = conn.get_target( tid );
+    unsigned char thread_id = target->get_thread();
+    unsigned int thread_lid = target->get_thread_lid();
+    //std::cout.write( reinterpret_cast< const char* >( &thread_id ), sizeof( thread_id ) );
+    //std::cout.write( reinterpret_cast< const char* >( &thread_lid ), sizeof( thread_lid ) );
+
+    double weight = conn.get_weight();
+    double delay = conn.get_delay();
+    //printf("TID: %zu, Syn_id: %zu, target_thread_id: %u & %u, weight: %f, delay: %f\n", tid, chunk_size, thread_id, thread_lid, weight, delay);
+    conn_instance++;
+  }
+  printf("Type: %d, TID: %zu, N_conn in syn_id %zu: %zu conn_thread: %zu\n", sionlib_file_id, tid, chunk_size, conn_instance, chunk_size_left);
+/*  size_t chars_left_in_chunk = chunk_size_left;
   size_t buf_start = chunk_size - chunk_size_left;
   char* buf = static_cast< char* >( malloc( chunk_size ) );
   unsigned char thread_id;
@@ -106,7 +121,7 @@ Connector< ConnectionT >::dump_connections( const int sionlib_file_id,
   if ( chars_left_in_chunk != chunk_size )
   {
     sion_fwrite( buf + buf_start, sizeof( char ), chunk_size - chars_left_in_chunk - buf_start, sionlib_file_id );
-  }
+  }*/
 }
 
 #else

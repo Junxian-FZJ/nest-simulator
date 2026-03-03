@@ -95,7 +95,7 @@ void
 ConnectionID::print_me( std::ostream& out ) const
 {
   out << "<" << source_node_id_ << "," << target_node_id_ << "," << target_thread_ << "," << synapse_modelid_ << ","
-      << port_ << ">";
+      << port_ << ">\n";
 }
 
 } // namespace

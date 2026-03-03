@@ -1161,29 +1161,10 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
       get_connections( connectome, source_a, target_a, syn_id, synapse_label );
     }
   }
-  printf("Rank %ld, INSIDE GetConnection size %zu. nestkernel/connection_manager.cpp\n", kernel().mpi_manager.get_rank(), connectome.size());
+  //printf("Rank %ld, INSIDE GetConnection size %zu. nestkernel/connection_manager.cpp\n", kernel().mpi_manager.get_rank(), connectome.size());
 
   ArrayDatum result;
   result.reserve( connectome.size() );
-
-  //
-  sion_int64 array_size = connectome.size();
-  sion_int64 unit_size;
-  unit_size = sizeof(ConnectionDatum( connectome.front() ));
-  //unit_size = sizeof(double);
-  //std::vector<double> test_double;
-  //test_double.reserve(array_size);
-  //for (int j = 0; j < array_size; j++){
-  //  test_double[j] = j+1;
-  //}
-  ConnectionDatum Cdatum;
-  Cdatum = ConnectionDatum( connectome.front() );
-  DictionaryDatum conn_dict = Cdatum.get_dict();
-  std::size_t source_node_id = getValue< long >( conn_dict, nest::names::source );
-  printf("SOURCE_NODE_ID: %lu \n", source_node_id);
-  //std::cout << "HOPES " << conn_dict.datum()->gettypename().toString() << std::endl;
-  //printf(conn_dict.datum()->gettypename().toString());
-  //
 
   while ( not connectome.empty() )
   {
@@ -1193,16 +1174,20 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
 
   get_connections_has_been_called_ = true;
 
-  printf("Sizeof ConnDatum: %llu long int: %lu double: %lu\n", unit_size, sizeof(long int), sizeof(double));
-  int sid;
-  int numFiles = 1;
-  sion_int64 chunksize  = array_size*unit_size;
-  sion_int32 fsblksize  = 8*1024*1024;
-  FILE* fileptr    = NULL;
-  char* newfname   = NULL;
-  MPI_Comm lComm;
-  int gRank = kernel().mpi_manager.get_rank();
-  lComm = kernel().mpi_manager.get_communicator();
+  //int total_threads = omp_get_num_threads();
+  //size_t thread_num_conns[total_threads];
+#pragma omp parallel
+  {
+    int temp_tid = kernel().vp_manager.get_thread_id();
+    size_t thread_num_conns = 0;
+
+    for ( size_t s = 0; s < num_connections_[ temp_tid ].size(); ++s )
+    {
+      thread_num_conns += num_connections_[ temp_tid ][ s ];
+    }
+    printf("synapses count: %zu, temp_num_conns[%d] = %zu, \n", num_connections_[ temp_tid ].size(), temp_tid, thread_num_conns);
+  }
+  
 /*
   MPI_Barrier(lComm);
   printf("START WAITING...\n");
@@ -1240,7 +1225,7 @@ nest::ConnectionManager::get_connections( const DictionaryDatum& params )
   //  printf("test_dou: %f\n", test_dou[j]);
   //}
 */
-  printf("Rank %ld done with SION stuff, array size %llu.\n", kernel().mpi_manager.get_rank(), array_size);
+//  printf("Rank %ld done with SION stuff, array size %llu.\n", kernel().mpi_manager.get_rank(), array_size);
 
   return result;
 }
@@ -1252,6 +1237,7 @@ extend_connectome( std::deque< nest::ConnectionID >& out, std::deque< nest::Conn
 {
   while ( not in.empty() )
   {
+    in.front().print_me( std::cout );
     out.push_back( in.front() );
     in.pop_front();
   }
@@ -1291,6 +1277,7 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
   synindex syn_id,
   long synapse_label ) const
 {
+  printf("Checking syn_id: %u\n", syn_id);
   if ( is_source_table_cleared() )
   {
     throw KernelException(
@@ -1323,6 +1310,11 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
           const size_t source_node_id = source_table_.get_node_id( tid, syn_id, lcid );
           connections->get_connection( source_node_id, 0, tid, lcid, synapse_label, conns_in_thread );
         }
+        printf("IF_1 TID: %zu, Num_conns: %zu, check: %zu\n", tid, num_connections_in_thread, connections_[tid][syn_id]->size());
+        // 1st variant: dump straight to sion file.
+        //if (tid == 0) {
+          connections_[ tid ][ syn_id ]->dump_connections(1, syn_id, num_connections_in_thread, tid);
+        //}
       }
 
       target_table_devices_.get_connections( 0, 0, tid, syn_id, synapse_label, conns_in_thread );
@@ -1334,6 +1326,24 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
           extend_connectome( connectome, conns_in_thread );
         }
       }
+
+/*// CREATE SIONlib File here===================
+#if defined( HAVE_SIONLIB ) && defined( HAVE_MPI )
+      int sid;
+      int numFiles = 1;
+      sion_int64 chunksize  = array_size*unit_size;
+      sion_int32 fsblksize  = 8*1024*1024;
+      FILE* fileptr    = NULL;
+      char* newfname   = NULL;
+      MPI_Comm lComm;
+      int gRank = kernel().mpi_manager.get_rank();
+      lComm = kernel().mpi_manager.get_communicator();
+
+      sid = sion_paropen_ompi("nest_sion_test.sion", "w", &numFiles, kernel().mpi_manager.get_communicator(), \
+                    &lComm, &chunksize, &fsblksize, &gRank, \
+                    &fileptr, &newfname);
+#endif
+// ===========================================*/
     } // of omp parallel
     return;
   } // if
@@ -1361,6 +1371,12 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
           connections->get_connection_with_specified_targets(
             source_node_id, target_neuron_node_ids, tid, lcid, synapse_label, conns_in_thread );
         }
+        
+        printf("IF_2 TID: %zu, Num_conns: %zu, check: %zu\n", tid, num_connections_in_thread, connections_[tid][syn_id]->size());
+        // 1st variant: dump straight to sion file. 
+        //if (tid == 0) {
+          connections_[ tid ][ syn_id ]->dump_connections(2, syn_id, num_connections_in_thread, tid);
+        //}
       }
 
       // Getting connections from devices.
@@ -1417,14 +1433,21 @@ nest::ConnectionManager::get_connections( std::deque< ConnectionID >& connectome
               // Passing target_node_id = 0 ignores target_node_id while getting
               // connections.
               connections->get_connection( source_node_id, 0, tid, lcid, synapse_label, conns_in_thread );
+//        printf("IF_3_0 TID: %zu, Num_conns: %zu, check: %zu, conns_in_thread size: %zu\n", tid, num_connections_in_thread, connections_[tid][syn_id]->size(), conns_in_thread.size());
             }
             else
             {
               connections->get_connection_with_specified_targets(
                 source_node_id, target_neuron_node_ids, tid, lcid, synapse_label, conns_in_thread );
+//        printf("IF_3_1 TID: %zu, Num_conns: %zu, check: %zu, conns_in_thread size: %zu\n", tid, num_connections_in_thread, connections_[tid][syn_id]->size(), conns_in_thread.size());
             }
           }
         }
+        printf("IF_3 TID: %zu, Num_conns: %zu, check: %zu, conns_in_thread size: %zu\n", tid, num_connections_in_thread, connections_[tid][syn_id]->size(), conns_in_thread.size());
+        // 1st variant: dump straight to sion file. 
+        //if (tid == 0) {
+          connections_[ tid ][ syn_id ]->dump_connections(3, syn_id, num_connections_in_thread, tid);
+        //}
       }
 
       NodeCollection::const_iterator s_id = source->begin();
